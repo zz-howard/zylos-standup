@@ -28,6 +28,7 @@ test('initializes schema and records migration', () => {
     'report_conversations',
     'daily_schedules',
     'summaries',
+    'sessions',
     'schema_migrations',
   ]) {
     assert.ok(tables.includes(table), `${table} should exist`);
@@ -38,7 +39,7 @@ test('initializes schema and records migration', () => {
   assert.ok(taskColumns.includes('today_text'));
   assert.ok(taskColumns.includes('ai_summary'));
 
-  assert.equal(db.getDb().pragma('user_version', { simple: true }), 2);
+  assert.equal(db.getDb().pragma('user_version', { simple: true }), 3);
 });
 
 test('creates teams, members, report tasks, conversations, and summaries', () => {

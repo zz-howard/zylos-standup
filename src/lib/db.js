@@ -121,6 +121,16 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_summaries_team_date ON summaries(team_id, summary_date);
     CREATE INDEX IF NOT EXISTS idx_summaries_status ON summaries(status);
 
+    CREATE TABLE IF NOT EXISTS sessions (
+      token_hash        TEXT PRIMARY KEY,
+      member_id         INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      created_at        INTEGER NOT NULL,
+      last_activity_at  INTEGER NOT NULL,
+      remember          INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_sessions_member ON sessions(member_id);
+
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version     INTEGER PRIMARY KEY,
       name        TEXT NOT NULL,
@@ -147,6 +157,23 @@ function runMigrations(db) {
       VALUES (2, 'add_report_task_text_fields')
     `).run();
     db.pragma('user_version = 2');
+  }
+  if (current < 3) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash        TEXT PRIMARY KEY,
+        member_id         INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+        created_at        INTEGER NOT NULL,
+        last_activity_at  INTEGER NOT NULL,
+        remember          INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_sessions_member ON sessions(member_id);
+    `);
+    db.prepare(`
+      INSERT OR IGNORE INTO schema_migrations (version, name)
+      VALUES (3, 'add_auth_sessions')
+    `).run();
+    db.pragma('user_version = 3');
   }
 }
 
@@ -265,6 +292,15 @@ export function getMemberByUsername(username) {
   return getDb().prepare('SELECT * FROM members WHERE username = ?').get(username) || null;
 }
 
+export function getMemberByTeamAndName(teamId, name) {
+  return getDb().prepare(`
+    SELECT * FROM members
+    WHERE team_id = ? AND active = 1 AND (username = ? OR display_name = ?)
+    ORDER BY CASE WHEN username = ? THEN 0 ELSE 1 END
+    LIMIT 1
+  `).get(teamId, name, name, name) || null;
+}
+
 export function createMember({
   teamId,
   username,
@@ -304,6 +340,51 @@ export function updateMember(id, updates) {
 
 export function deleteMember(id) {
   return getDb().prepare('DELETE FROM members WHERE id = ?').run(id).changes;
+}
+
+export function sanitizeMember(member) {
+  if (!member) return null;
+  const { password_hash, password_salt, ...safe } = member;
+  return safe;
+}
+
+export function createSession({ tokenHash, memberId, createdAt, lastActivityAt, remember = false }) {
+  getDb().prepare(`
+    INSERT INTO sessions (token_hash, member_id, created_at, last_activity_at, remember)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(tokenHash, memberId, createdAt, lastActivityAt, remember ? 1 : 0);
+  return getSession(tokenHash);
+}
+
+export function getSession(tokenHash) {
+  return getDb().prepare(`
+    SELECT s.*, m.team_id, m.username, m.display_name, m.role, m.active
+    FROM sessions s
+    JOIN members m ON m.id = s.member_id
+    WHERE s.token_hash = ?
+  `).get(tokenHash) || null;
+}
+
+export function touchSession(tokenHash, timestamp) {
+  return getDb().prepare(`
+    UPDATE sessions SET last_activity_at = ? WHERE token_hash = ?
+  `).run(timestamp, tokenHash).changes;
+}
+
+export function deleteSession(tokenHash) {
+  return getDb().prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash).changes;
+}
+
+export function deleteExpiredSessions(now, sessionAbsoluteMs, sessionIdleMs, rememberAbsoluteMs, rememberIdleMs) {
+  return getDb().prepare(`
+    DELETE FROM sessions WHERE
+      (remember = 0 AND (? - created_at > ? OR ? - last_activity_at > ?))
+      OR
+      (remember = 1 AND (? - created_at > ? OR ? - last_activity_at > ?))
+  `).run(
+    now, sessionAbsoluteMs, now, sessionIdleMs,
+    now, rememberAbsoluteMs, now, rememberIdleMs,
+  ).changes;
 }
 
 export function listReportTasks({ teamId, memberId, reportDate, status } = {}) {

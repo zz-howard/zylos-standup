@@ -5,7 +5,9 @@
  * AI-assisted async daily standup tool
  */
 
+import express from 'express';
 import { getConfig, watchConfig, DATA_DIR } from './lib/config.js';
+import { cleanupExpiredSessions, setupAuthRoutes } from './lib/auth.js';
 import { closeDb, getDb } from './lib/db.js';
 
 // Initialize
@@ -32,8 +34,22 @@ watchConfig((newConfig) => {
 });
 
 // Main component logic
+let server = null;
+let cleanupTimer = null;
+
 async function main() {
   getDb();
+  cleanupTimer = setInterval(() => cleanupExpiredSessions(), 300_000);
+  cleanupTimer.unref?.();
+
+  const app = express();
+  app.set('trust proxy', 'loopback');
+  app.use(express.json({ limit: '64kb' }));
+  setupAuthRoutes(app);
+
+  app.get('/api/health', (req, res) => {
+    res.json({ ok: true });
+  });
 
   // TODO: Implement your component logic here
   //
@@ -41,12 +57,23 @@ async function main() {
   // Capability components: start HTTP server or other service interface
   // Utility components: run task and exit (remove the keepalive below)
 
-  console.log(`[standup] Running`);
+  server = app.listen(config.port, '127.0.0.1', () => {
+    console.log(`[standup] Server listening on 127.0.0.1:${config.port}`);
+  });
 }
 
 // Graceful shutdown
 function shutdown() {
   console.log(`[standup] Shutting down...`);
+  if (cleanupTimer) clearInterval(cleanupTimer);
+  if (server) {
+    server.close(() => {
+      closeDb();
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 5000).unref?.();
+    return;
+  }
   closeDb();
   process.exit(0);
 }
