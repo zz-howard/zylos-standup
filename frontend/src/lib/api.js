@@ -7,12 +7,14 @@ export class ApiError extends Error {
   }
 }
 
+const API_BASE = window.location.pathname.startsWith('/standup') ? '/standup' : '';
+
 export async function api(path, options = {}) {
   const headers = { ...(options.headers || {}) };
   const hasBody = options.body !== undefined && options.body !== null;
   if (hasBody && !headers['content-type']) headers['content-type'] = 'application/json';
 
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'same-origin',
     ...options,
     headers,
