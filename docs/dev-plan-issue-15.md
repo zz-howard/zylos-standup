@@ -22,7 +22,7 @@ Replace standup's direct OpenAI/Anthropic SDK calls with recruit's AI Gateway pa
 - `src/ai/conversation.js` — update to use gateway instead of `callAi`
 - `src/ai/summary.js` — update to use gateway instead of `callAi`
 - Config schema update: `ai.default.runtime` supports `auto|claude|codex-api`
-- `package.json` — add `@anthropic-ai/sandbox-runtime`, `undici`, `shell-quote`; remove `@anthropic-ai/sdk` (no longer needed for direct calls)
+- `package.json` — add `@anthropic-ai/sandbox-runtime`, `undici`, `shell-quote`; keep `openai` (used by codex-api adapter); remove `@anthropic-ai/sdk` (no longer needed)
 - Tests updated to work with gateway DI
 
 **Out of scope:**
@@ -62,9 +62,12 @@ Callers (conversation.js, summary.js) build `{ systemPrompt, messages }` and pas
 
 ## Test Checklist
 
-- [ ] Gateway `resolve()` selects correct adapter based on config/env
+- [ ] Gateway `resolve()` auto fallback: claude available → claude; claude unavailable + codex auth → codex-api; neither → actionable error
 - [ ] Claude adapter `isAvailable()` checks `which claude`
 - [ ] Codex-API adapter `isAvailable()` checks `~/.codex/auth.json`
+- [ ] Sandbox: `buildSandboxRuntimeConfig()` denies `$HOME` and `~/zylos` by default
+- [ ] Sandbox: standup scenarios only allow necessary auth/support/tmp paths, NOT standup data/config/db
+- [ ] Sandbox: `allowUnsandboxed` defaults to false; sandbox init failure → fail-closed (exit 126)
 - [ ] `conversation.js` works with mock gateway (DI)
 - [ ] `summary.js` works with mock gateway (DI)
 - [ ] Summary API test still passes with DI aiClient
@@ -75,9 +78,9 @@ Callers (conversation.js, summary.js) build `{ systemPrompt, messages }` and pas
 
 - Claude CLI is installed on both KVM and Spark (`which claude` succeeds)
 - `~/.codex/auth.json` may or may not exist (codex-api is optional fallback)
-- `@anthropic-ai/sandbox-runtime` works on both x86_64 (KVM) and aarch64 (Spark) — recruit already validates this on KVM
+- `@anthropic-ai/sandbox-runtime` works on x86_64 (KVM) — recruit validates this. Aarch64 (Spark) is expected but must be verified if Spark is a deployment target
 - Standup's AI scenarios only need `text` capability (no file reading, no web search)
-- The `openai` npm package can be removed since codex-api uses it as a peer of undici, not the standalone SDK pattern
+- Codex-api adapter uses `openai` SDK with undici `ProxyAgent` — `openai` must remain as a dependency
 
 ## Acceptance Checklist
 
@@ -87,5 +90,7 @@ Callers (conversation.js, summary.js) build `{ systemPrompt, messages }` and pas
 - [ ] Live AI conversation works (POST /api/tasks/:id/conversation returns AI reply, not error)
 - [ ] Live summary generation works (POST /api/summaries/generate returns status=ready)
 - [ ] No `@anthropic-ai/sdk` or direct `openai` import outside runtimes/
+- [ ] Sandbox tests pass: deny $HOME/~/zylos, allow only auth/support/tmp, allowUnsandboxed=false fail-closed
 - [ ] Sandbox status reported in AI call metadata
 - [ ] Config `ai.default.runtime: 'auto'` selects claude on KVM
+- [ ] If Spark is a target: `detectRuntimes()` + sandbox smoke test on aarch64
