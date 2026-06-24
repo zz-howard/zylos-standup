@@ -39,6 +39,7 @@
     "openai": "^6.44.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "react-router-dom": "^7.18.0",
     "shell-quote": "^1.8.4",
     "tailwind-merge": "^3.6.0",
     "undici": "^8.5.0"
