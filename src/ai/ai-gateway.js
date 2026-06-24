@@ -47,7 +47,9 @@ export function detectRuntimes({ adapterRegistry = adapters } = {}) {
   for (const [name, adapter] of Object.entries(adapterRegistry)) {
     if (adapter.isAvailable()) available.push(name);
   }
-  return { available, selected: available[0] || null };
+  let selected = null;
+  try { selected = resolveAutoRuntime(adapterRegistry); } catch { /* none available */ }
+  return { available, selected };
 }
 
 export function getAdapter(name) {
@@ -88,20 +90,45 @@ export async function call(scenario, prompt, {
   overrides,
   adapterRegistry = adapters,
 } = {}) {
+  const cfg = overrides || resolveScenarioConfig(scenario);
+  const isAutoMode = (cfg.runtime || cfg.provider || 'auto') === 'auto';
   const { adapter, runtimeName, model, effort } = resolve(scenario, { overrides, adapterRegistry });
   checkCapability(adapter, required);
 
-  const result = await adapter.call(prompt, {
-    model,
-    effort,
-    conversation,
-    scenario,
-    capabilities: required,
-  });
-  return {
-    text: String(result?.text || result || '').trim(),
-    runtime: runtimeName,
-    model,
-    sandboxed: Boolean(result?.sandboxed),
-  };
+  try {
+    const result = await adapter.call(prompt, {
+      model,
+      effort,
+      conversation,
+      scenario,
+      capabilities: required,
+    });
+    return {
+      text: String(result?.text || result || '').trim(),
+      runtime: runtimeName,
+      model,
+      sandboxed: Boolean(result?.sandboxed),
+    };
+  } catch (err) {
+    if (!isAutoMode) throw err;
+    const fallbacks = Object.entries(adapterRegistry)
+      .filter(([name, a]) => name !== runtimeName && a.isAvailable() && required.every(c => a.capabilities.includes(c)));
+    if (fallbacks.length === 0) throw err;
+    const [fallbackName, fallbackAdapter] = fallbacks[0];
+    const fallbackModel = cfg.model && cfg.model !== 'auto' ? cfg.model : fallbackAdapter.defaultModel || DEFAULT_MODELS[fallbackName];
+    console.log(`[standup] AI runtime "${runtimeName}" failed (${err.message}), falling back to "${fallbackName}"`);
+    const result = await fallbackAdapter.call(prompt, {
+      model: fallbackModel,
+      effort,
+      conversation,
+      scenario,
+      capabilities: required,
+    });
+    return {
+      text: String(result?.text || result || '').trim(),
+      runtime: fallbackName,
+      model: fallbackModel,
+      sandboxed: Boolean(result?.sandboxed),
+    };
+  }
 }

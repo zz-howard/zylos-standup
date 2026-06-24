@@ -89,3 +89,42 @@ test('detectRuntimes reports available runtimes', () => {
     },
   }), { available: ['codex-api'], selected: 'codex-api' });
 });
+
+test('auto mode falls back to codex-api when claude call fails (sandbox init failure)', async () => {
+  const failingClaude = {
+    name: 'claude',
+    capabilities: ['text'],
+    defaultModel: 'sonnet',
+    isAvailable: () => true,
+    call: async () => { throw new Error('bwrap: setting up uid map: Permission denied'); },
+  };
+  const result = await gateway.call('report', 'hello', {
+    conversation: { systemPrompt: 'test', messages: [{ role: 'user', content: 'hello' }] },
+    adapterRegistry: {
+      claude: failingClaude,
+      'codex-api': adapter('codex-api', true),
+    },
+  });
+  assert.equal(result.runtime, 'codex-api');
+  assert.equal(result.text, 'codex-api reply');
+});
+
+test('explicit runtime does not fallback on failure', async () => {
+  const failingClaude = {
+    name: 'claude',
+    capabilities: ['text'],
+    defaultModel: 'sonnet',
+    isAvailable: () => true,
+    call: async () => { throw new Error('sandbox init failed'); },
+  };
+  await assert.rejects(
+    () => gateway.call('report', 'hello', {
+      overrides: { runtime: 'claude', model: 'auto', effort: 'medium' },
+      adapterRegistry: {
+        claude: failingClaude,
+        'codex-api': adapter('codex-api', true),
+      },
+    }),
+    /sandbox init failed/,
+  );
+});
