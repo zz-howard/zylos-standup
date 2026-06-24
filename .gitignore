@@ -18,7 +18,6 @@ logs/
 Thumbs.db
 
 # Build artifacts
-dist/
 build/
 
 # Temporary files

@@ -1,39 +1,31 @@
 import express from 'express';
 import path from 'node:path';
 
-const HTML = `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Zylos Standup</title>
-  <link rel="stylesheet" href="./_assets/standup.css">
-</head>
-<body>
-  <div id="app" class="app-shell" data-loading="true"></div>
-  <script src="./_assets/standup.js" defer></script>
-</body>
-</html>`;
+const distDir = path.join(import.meta.dirname, '..', '..', 'dist');
+const assetsDir = path.join(distDir, 'assets');
+const indexPath = path.join(distDir, 'index.html');
 
 export function setupFrontendRoutes(app) {
-  const assetsDir = path.join(import.meta.dirname, '..', '..', 'assets');
-  app.use('/_assets', express.static(assetsDir, { maxAge: '1h' }));
-  app.use('/standup/_assets', express.static(assetsDir, { maxAge: '1h' }));
+  app.use('/assets', express.static(assetsDir, { immutable: true, maxAge: '1y' }));
+  app.use('/standup/assets', express.static(assetsDir, { immutable: true, maxAge: '1y' }));
+  app.use(express.static(distDir, { index: false, maxAge: '1h' }));
+  app.use('/standup', express.static(distDir, { index: false, maxAge: '1h' }));
 
-  const renderApp = (_req, res) => {
-    res.type('html').send(HTML);
+  const renderApp = (req, res, next) => {
+    if (
+      req.path.startsWith('/api/') ||
+      req.path.startsWith('/standup/api/') ||
+      req.path.startsWith('/assets/') ||
+      req.path.startsWith('/standup/assets/')
+    ) {
+      return next();
+    }
+    const behindProxy = !!req.headers['x-forwarded-prefix'];
+    if (!behindProxy && !req.path.startsWith('/standup')) {
+      return res.redirect(302, `/standup${req.path === '/' ? '/' : req.path}`);
+    }
+    return res.sendFile(indexPath);
   };
 
-  app.get('/', renderApp);
-  app.get('/login', renderApp);
-  app.get('/report', renderApp);
-  app.get('/admin', renderApp);
-  app.get('/summary/:team/:date', renderApp);
-
-  // Direct local access without Caddy strip-prefix.
-  app.get('/standup', renderApp);
-  app.get('/standup/login', renderApp);
-  app.get('/standup/report', renderApp);
-  app.get('/standup/admin', renderApp);
-  app.get('/standup/summary/:team/:date', renderApp);
+  app.get('*', renderApp);
 }
