@@ -35,6 +35,12 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
+function renderMd(value) {
+  return escapeHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
 async function api(path, options = {}) {
   const res = await fetch(apiUrl(path), {
     credentials: 'same-origin',
@@ -182,7 +188,7 @@ function renderReportPage() {
         <div><strong>${escapeHtml(task.report_date)}</strong><div class="muted">Task #${task.id}</div></div>
         ${taskBadge(task.status)}
       </div>
-      <div class="muted">${escapeHtml(task.ai_summary || 'No summary yet.')}</div>
+      <div class="muted">${renderMd(task.ai_summary || 'No summary yet.')}</div>
     </article>
   `).join('') : '<div class="empty">No report tasks for today.</div>';
 
@@ -203,7 +209,7 @@ function renderReportPage() {
             ${state.conversation.length ? state.conversation.map(row => `
               <div class="message ${row.role}">
                 <div class="role">${row.role}</div>
-                <div>${escapeHtml(row.content)}</div>
+                <div>${renderMd(row.content)}</div>
               </div>
             `).join('') : '<div class="empty">No chat yet.</div>'}
           </div>
@@ -217,7 +223,7 @@ function renderReportPage() {
   ` : '<section class="panel empty">Create today tasks from the scheduler before reporting.</section>';
 
   app.innerHTML = shell(`
-    <div class="grid two">
+    <div class="report-grid">
       <section class="stack">
         <div class="section-title"><h1>Today</h1><button data-action="refresh">Refresh</button></div>
         ${taskList}
@@ -334,7 +340,7 @@ function renderAdminPage() {
           <button class="primary">Generate Summary</button>
         </form>
         ${state.summary ? `
-          <div class="summary-body">${escapeHtml(state.summary.brief_text || state.summary.error_message || 'Summary is pending.')}</div>
+          <div class="summary-body">${renderMd(state.summary.brief_text || state.summary.error_message || 'Summary is pending.')}</div>
           <div class="muted">${escapeHtml(state.summary.full_html_path || '')}</div>
         ` : '<div class="empty">No summary for the selected date.</div>'}
       ` : '<div class="empty">Create a team first.</div>'}
@@ -413,11 +419,11 @@ async function renderSummary() {
       <div class="muted">Team ${escapeHtml(team || '')} / ${escapeHtml(date || '')}</div>
       <section class="stack">
         <h2>Brief</h2>
-        <div class="summary-body">${escapeHtml(summary.brief_text || summary.error_message || 'No brief summary available.')}</div>
+        <div class="summary-body">${renderMd(summary.brief_text || summary.error_message || 'No brief summary available.')}</div>
       </section>
       <section class="stack">
         <h2>Detailed Markdown</h2>
-        <div class="summary-body">${escapeHtml(summary.content || '')}</div>
+        <div class="summary-body">${renderMd(summary.content || '')}</div>
       </section>
       ${summary.full_html_path ? `<div class="muted">${escapeHtml(summary.full_html_path)}</div>` : ''}
     </section>

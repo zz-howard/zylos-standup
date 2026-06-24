@@ -103,8 +103,8 @@ textarea {
 }
 
 .brand img {
-  width: 34px;
   height: 34px;
+  width: auto;
 }
 
 .brand strong {
@@ -162,8 +162,8 @@ textarea {
 }
 
 .login-box img {
-  width: 52px;
-  height: 52px;
+  height: 42px;
+  width: auto;
 }
 
 .stack {
@@ -177,7 +177,13 @@ textarea {
 }
 
 .grid.two {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  grid-template-columns: 1fr 1fr;
+}
+
+.report-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(260px, 320px) 1fr;
 }
 
 .grid.three {
