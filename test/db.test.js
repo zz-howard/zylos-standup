@@ -39,7 +39,11 @@ test('initializes schema and records migration', () => {
   assert.ok(taskColumns.includes('today_text'));
   assert.ok(taskColumns.includes('ai_summary'));
 
-  assert.equal(db.getDb().pragma('user_version', { simple: true }), 3);
+  const summaryColumns = db.getDb().prepare('PRAGMA table_info(summaries)').all().map(c => c.name);
+  assert.ok(summaryColumns.includes('brief_text'));
+  assert.ok(summaryColumns.includes('full_html_path'));
+
+  assert.equal(db.getDb().pragma('user_version', { simple: true }), 4);
 });
 
 test('creates teams, members, report tasks, conversations, and summaries', () => {
@@ -106,9 +110,13 @@ test('creates teams, members, report tasks, conversations, and summaries', () =>
     summaryDate: '2026-06-24',
     status: 'ready',
     content: 'Alice shipped the DB layer.',
+    briefText: 'Alice shipped the DB layer.',
+    fullHtmlPath: '/tmp/standup/engineering/2026-06-24.md',
     meta: { taskIds: [task.id] },
   });
   assert.equal(summary.status, 'ready');
+  assert.equal(summary.brief_text, 'Alice shipped the DB layer.');
+  assert.equal(summary.full_html_path, '/tmp/standup/engineering/2026-06-24.md');
   assert.ok(summary.generated_at);
   assert.deepEqual(summary.meta, { taskIds: [task.id] });
 });

@@ -8,6 +8,8 @@ const state = {
   teams: [],
   members: [],
   schedules: [],
+  summary: null,
+  summaryDate: new Date().toISOString().slice(0, 10),
   error: '',
 };
 
@@ -267,15 +269,22 @@ async function loadAdmin() {
   const body = await api('/api/teams');
   state.teams = body.teams || [];
   const selectedTeam = state.teams[0];
+  state.summary = null;
   if (selectedTeam) {
     state.members = (await api(`/api/teams/${selectedTeam.id}/members`)).members || [];
     const month = new Date().toISOString().slice(0, 7);
     state.schedules = (await api(`/api/teams/${selectedTeam.id}/schedule?month=${month}`)).schedules || [];
+    state.summary = await api(`/api/summaries/${selectedTeam.id}/${state.summaryDate}`)
+      .then(body => body.summary)
+      .catch(() => null);
   }
 }
 
 function renderAdminPage() {
   const team = state.teams[0];
+  const summaryLink = team && state.summary
+    ? `<button data-nav="/summary/${team.id}/${state.summary.summary_date}">Open Summary</button>`
+    : '';
   app.innerHTML = shell(`
     <div class="grid three">
       <section class="panel stack">
@@ -318,8 +327,17 @@ function renderAdminPage() {
       </section>
     </div>
     <section class="panel stack" style="margin-top:16px">
-      <div class="section-title"><h2>Summary History</h2><button disabled>Generate Summary</button></div>
-      <div class="empty">Summary generation arrives in the summaries issue. This view is ready for the API.</div>
+      <div class="section-title"><h2>Summary</h2>${summaryLink}</div>
+      ${team ? `
+        <form class="actions" data-form="summary">
+          <input name="date" type="date" value="${escapeHtml(state.summaryDate)}" required>
+          <button class="primary">Generate Summary</button>
+        </form>
+        ${state.summary ? `
+          <div class="summary-body">${escapeHtml(state.summary.brief_text || state.summary.error_message || 'Summary is pending.')}</div>
+          <div class="muted">${escapeHtml(state.summary.full_html_path || '')}</div>
+        ` : '<div class="empty">No summary for the selected date.</div>'}
+      ` : '<div class="empty">Create a team first.</div>'}
     </section>
   `, 'admin');
   bindShell();
@@ -353,6 +371,17 @@ function renderAdminPage() {
     });
     render();
   });
+  app.querySelector('[data-form="summary"]')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    state.summaryDate = data.date;
+    const body = await api('/api/summaries/generate', {
+      method: 'POST',
+      body: JSON.stringify({ team_id: team.id, date: data.date }),
+    });
+    state.summary = body.summary;
+    renderAdminPage();
+  });
 }
 
 async function renderAdmin() {
@@ -360,13 +389,37 @@ async function renderAdmin() {
   renderAdminPage();
 }
 
-function renderSummary() {
+async function renderSummary() {
   const [, , team, date] = localPath().split('/');
+  const body = await api(`/api/summaries/${team}/${date}`).catch((err) => {
+    if (err.message === 'summary_not_found') return { summary: null };
+    throw err;
+  });
+  const summary = body.summary;
+  if (!summary) {
+    app.innerHTML = shell(`
+      <section class="panel stack">
+        <div class="section-title"><h1>Summary</h1><span class="badge">Missing</span></div>
+        <div class="muted">Team ${escapeHtml(team || '')} / ${escapeHtml(date || '')}</div>
+        <div class="empty">No summary exists for this team and date.</div>
+      </section>
+    `, '');
+    bindShell();
+    return;
+  }
   app.innerHTML = shell(`
     <section class="panel stack">
-      <div class="section-title"><h1>Summary</h1><span class="badge">Team ${escapeHtml(team || '')}</span></div>
-      <div class="muted">${escapeHtml(date || '')}</div>
-      <div class="summary-body empty">Detailed summaries will render here when the summary API is available. Link-out to Pages can be attached from this view.</div>
+      <div class="section-title"><h1>Summary</h1><span class="badge ${summary.status === 'ready' ? 'done' : ''}">${escapeHtml(summary.status)}</span></div>
+      <div class="muted">Team ${escapeHtml(team || '')} / ${escapeHtml(date || '')}</div>
+      <section class="stack">
+        <h2>Brief</h2>
+        <div class="summary-body">${escapeHtml(summary.brief_text || summary.error_message || 'No brief summary available.')}</div>
+      </section>
+      <section class="stack">
+        <h2>Detailed Markdown</h2>
+        <div class="summary-body">${escapeHtml(summary.content || '')}</div>
+      </section>
+      ${summary.full_html_path ? `<div class="muted">${escapeHtml(summary.full_html_path)}</div>` : ''}
     </section>
   `, '');
   bindShell();

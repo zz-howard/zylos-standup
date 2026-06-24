@@ -10,6 +10,7 @@ import { getConfig, watchConfig, DATA_DIR } from './lib/config.js';
 import { cleanupExpiredSessions, setupAuthRoutes } from './lib/auth.js';
 import { closeDb, getDb } from './lib/db.js';
 import { setupFrontendRoutes } from './lib/frontend.js';
+import { setupSummaryRoutes } from './lib/summary-api.js';
 import { setupTaskRoutes } from './lib/tasks-api.js';
 import { setupTeamRoutes } from './lib/team-api.js';
 
@@ -57,6 +58,7 @@ async function main() {
   setupAuthRoutes(app);
   setupTaskRoutes(app);
   setupTeamRoutes(app);
+  setupSummaryRoutes(app);
 
   // TODO: Implement your component logic here
   //

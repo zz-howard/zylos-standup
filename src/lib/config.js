@@ -13,6 +13,8 @@ export const DATA_DIR = process.env.STANDUP_DATA_DIR || path.join(HOME, 'zylos/c
 export const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 export const DB_PATH = process.env.STANDUP_DB_PATH || path.join(DATA_DIR, 'standup.db');
 export const LOGS_DIR = path.join(DATA_DIR, 'logs');
+export const PAGES_STANDUP_DIR = process.env.STANDUP_PAGES_DIR
+  || path.join(HOME, 'zylos/http/public/pages/standup');
 
 // Default configuration
 export const DEFAULT_CONFIG = {
@@ -26,6 +28,7 @@ export const DEFAULT_CONFIG = {
   },
   reports: {
     defaultTimezone: 'Asia/Singapore',
+    pagesDir: PAGES_STANDUP_DIR,
     defaultPrompt: [
       'What did you do since your last update?',
       'What are you planning to do next?',

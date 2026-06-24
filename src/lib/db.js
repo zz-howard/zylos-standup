@@ -110,6 +110,8 @@ function initSchema(db) {
       status         TEXT NOT NULL DEFAULT 'draft'
                      CHECK (status IN ('draft','ready','failed')),
       content        TEXT,
+      brief_text     TEXT,
+      full_html_path TEXT,
       meta_json      TEXT,
       generated_at   TEXT,
       error_message  TEXT,
@@ -174,6 +176,15 @@ function runMigrations(db) {
       VALUES (3, 'add_auth_sessions')
     `).run();
     db.pragma('user_version = 3');
+  }
+  if (current < 4) {
+    addColumnIfMissing(db, 'summaries', 'brief_text', 'TEXT');
+    addColumnIfMissing(db, 'summaries', 'full_html_path', 'TEXT');
+    db.prepare(`
+      INSERT OR IGNORE INTO schema_migrations (version, name)
+      VALUES (4, 'add_summary_outputs')
+    `).run();
+    db.pragma('user_version = 4');
   }
 }
 
@@ -556,21 +567,37 @@ export function upsertSummary({
   summaryDate,
   status = 'draft',
   content = null,
+  briefText = null,
+  fullHtmlPath = null,
   meta = null,
   errorMessage = null,
 }) {
   assertOneOf(status, SUMMARY_STATUSES, 'status');
   getDb().prepare(`
-    INSERT INTO summaries (team_id, summary_date, status, content, meta_json, generated_at, error_message)
-    VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'ready' THEN datetime('now') ELSE NULL END, ?)
+    INSERT INTO summaries (
+      team_id, summary_date, status, content, brief_text, full_html_path, meta_json, generated_at, error_message
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'ready' THEN datetime('now') ELSE NULL END, ?)
     ON CONFLICT(team_id, summary_date) DO UPDATE SET
       status = excluded.status,
       content = excluded.content,
+      brief_text = excluded.brief_text,
+      full_html_path = excluded.full_html_path,
       meta_json = excluded.meta_json,
       generated_at = excluded.generated_at,
       error_message = excluded.error_message,
       updated_at = datetime('now')
-  `).run(teamId, summaryDate, status, content, toJson(meta), status, errorMessage);
+  `).run(
+    teamId,
+    summaryDate,
+    status,
+    content,
+    briefText,
+    fullHtmlPath,
+    toJson(meta),
+    status,
+    errorMessage,
+  );
   return getSummary(teamId, summaryDate);
 }
 
