@@ -1,4 +1,4 @@
-import { callAi } from './client.js';
+import { call as gatewayCall } from './ai-gateway.js';
 
 const SUMMARY_RE = /\[SUMMARY_START\]([\s\S]*?)\[SUMMARY_END\]/i;
 
@@ -45,12 +45,29 @@ export function buildConversationContext({ task, history = [], userMessage, type
   return { systemPrompt, messages };
 }
 
+function flattenConversation(conversation) {
+  return [
+    conversation.systemPrompt,
+    '',
+    ...conversation.messages.map(message => `${message.role.toUpperCase()}: ${message.content}`),
+  ].join('\n');
+}
+
+export async function callConversationGateway(request) {
+  return gatewayCall(request.scenario || 'report', flattenConversation(request), {
+    conversation: {
+      systemPrompt: request.systemPrompt,
+      messages: request.messages,
+    },
+  });
+}
+
 export async function generateConversationReply({
   task,
   history,
   userMessage,
   type = 'personal_daily',
-  aiClient = callAi,
+  aiClient = callConversationGateway,
 }) {
   const conversation = buildConversationContext({ task, history, userMessage, type });
   const result = await aiClient({ ...conversation, scenario: 'report' });
@@ -59,8 +76,9 @@ export async function generateConversationReply({
     replyText: replyText || result.text || '',
     summary,
     meta: {
-      provider: result.provider || 'test',
+      provider: result.runtime || result.provider || 'test',
       model: result.model || null,
+      sandboxed: result.sandboxed,
     },
   };
 }

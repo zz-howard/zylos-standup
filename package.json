@@ -27,9 +27,11 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.105.0",
+    "@anthropic-ai/sandbox-runtime": "^0.0.59",
     "better-sqlite3": "^11.10.0",
     "express": "^4.22.2",
-    "openai": "^6.44.0"
+    "openai": "^6.44.0",
+    "shell-quote": "^1.8.4",
+    "undici": "^8.5.0"
   }
 }

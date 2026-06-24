@@ -1,4 +1,4 @@
-import { callAi } from './client.js';
+import { call as gatewayCall } from './ai-gateway.js';
 
 export function buildBriefPrompt({ team, summaryDate, tasks }) {
   const lines = tasks.map(task => [
@@ -30,7 +30,24 @@ export function buildBriefPrompt({ team, summaryDate, tasks }) {
   };
 }
 
-export async function generateBriefSummary({ team, summaryDate, tasks, aiClient = callAi }) {
+function flattenConversation(conversation) {
+  return [
+    conversation.systemPrompt,
+    '',
+    ...conversation.messages.map(message => `${message.role.toUpperCase()}: ${message.content}`),
+  ].join('\n');
+}
+
+export async function callSummaryGateway(request) {
+  return gatewayCall(request.scenario || 'summary', flattenConversation(request), {
+    conversation: {
+      systemPrompt: request.systemPrompt,
+      messages: request.messages,
+    },
+  });
+}
+
+export async function generateBriefSummary({ team, summaryDate, tasks, aiClient = callSummaryGateway }) {
   if (!tasks.length) {
     return 'No completed reports were available for this date.';
   }
