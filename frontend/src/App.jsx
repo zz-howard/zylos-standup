@@ -1,6 +1,7 @@
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import AppShell, { LoadingScreen } from './components/AppShell.jsx';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
+import LoginPage from './pages/LoginPage.jsx';
 
 function Placeholder({ title }) {
   return (
@@ -22,7 +23,7 @@ function LoginRedirect() {
   const { member, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (member) return <Navigate to="/report" replace />;
-  return <Placeholder title="Login" />;
+  return <LoginPage />;
 }
 
 const router = createBrowserRouter([
