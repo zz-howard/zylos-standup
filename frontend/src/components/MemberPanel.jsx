@@ -32,7 +32,7 @@ export default function MemberPanel({
             <form className="grid gap-3" onSubmit={submit}>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Username" htmlFor="member-username">
-                  <Input id="member-username" name="username" required disabled={busy} />
+                  <Input id="member-username" name="username" autoComplete="username" required disabled={busy} />
                 </Field>
                 <Field label="Display name" htmlFor="member-display-name">
                   <Input id="member-display-name" name="display_name" required disabled={busy} />
@@ -40,7 +40,7 @@ export default function MemberPanel({
               </div>
               <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_130px]">
                 <Field label="Initial password" htmlFor="member-password">
-                  <Input id="member-password" name="password" type="password" required disabled={busy} />
+                  <Input id="member-password" name="password" type="password" autoComplete="new-password" required disabled={busy} />
                 </Field>
                 <Field label="Role" htmlFor="member-role">
                   <Select id="member-role" name="role" defaultValue="member" disabled={busy}>

@@ -22,7 +22,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    refresh();
+    const path = window.location.pathname.replace(/^\/standup/, '') || '/';
+    if (path === '/login') {
+      setLoading(false);
+    } else {
+      refresh();
+    }
     const onUnauthorized = () => setMember(null);
     window.addEventListener('standup:unauthorized', onUnauthorized);
     return () => window.removeEventListener('standup:unauthorized', onUnauthorized);
