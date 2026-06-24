@@ -18,8 +18,9 @@ export async function api(path, options = {}) {
     headers,
   });
   const body = await response.json().catch(() => ({}));
-  if (response.status === 401) {
+  if (response.status === 401 && path !== '/api/auth/login') {
     window.dispatchEvent(new CustomEvent('standup:unauthorized'));
+    return {};
   }
   if (!response.ok) {
     throw new ApiError(body.error || `request_failed_${response.status}`, {

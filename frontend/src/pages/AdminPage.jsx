@@ -5,16 +5,15 @@ import SummaryPanel from '../components/SummaryPanel.jsx';
 import TeamPanel from '../components/TeamPanel.jsx';
 import { api, formatApiError } from '../lib/api.js';
 
-const today = new Date().toISOString().slice(0, 10);
-const currentMonth = today.slice(0, 7);
-
 export default function AdminPage() {
+  const initialDate = new Date().toISOString().slice(0, 10);
+  const initialMonth = initialDate.slice(0, 7);
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState(null);
   const [members, setMembers] = useState([]);
   const [schedules, setSchedules] = useState([]);
-  const [scheduleMonth, setScheduleMonth] = useState(currentMonth);
-  const [summaryDate, setSummaryDate] = useState(today);
+  const [scheduleMonth, setScheduleMonth] = useState(initialMonth);
+  const [summaryDate, setSummaryDate] = useState(initialDate);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

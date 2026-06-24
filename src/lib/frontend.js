@@ -14,10 +14,14 @@ export function setupFrontendRoutes(app) {
   const renderApp = (req, res, next) => {
     if (
       req.path.startsWith('/api/') ||
+      req.path.startsWith('/standup/api/') ||
       req.path.startsWith('/assets/') ||
       req.path.startsWith('/standup/assets/')
     ) {
       return next();
+    }
+    if (!req.path.startsWith('/standup')) {
+      return res.redirect(302, `/standup${req.path === '/' ? '/' : req.path}`);
     }
     return res.sendFile(indexPath);
   };

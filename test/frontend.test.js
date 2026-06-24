@@ -11,6 +11,8 @@ const indexPath = path.join(distDir, 'index.html');
 function startApp() {
   const app = express();
   setupFrontendRoutes(app);
+  app.get('/api/health', (_req, res) => res.json({ ok: true }));
+  app.get('/standup/api/health', (_req, res) => res.json({ ok: true }));
   return new Promise(resolve => {
     const server = app.listen(0, '127.0.0.1', () => {
       resolve({ server, baseUrl: `http://127.0.0.1:${server.address().port}` });
@@ -37,13 +39,30 @@ test('frontend routes serve the built single page app and Vite assets', async ()
     assert.ok(assetUrls.length >= 2, 'expected built script and stylesheet asset URLs');
     assert.ok(assetUrls.every(url => url.startsWith('/standup/assets/')));
 
-    for (const route of ['/', '/report', '/standup/report', '/summary/1/2026-06-25', '/standup/summary/1/2026-06-25']) {
+    for (const route of ['/standup', '/standup/report', '/standup/summary/1/2026-06-25']) {
       const res = await fetch(`${baseUrl}${route}`);
       assert.equal(res.status, 200, route);
       assert.match(res.headers.get('content-type'), /text\/html/);
       const html = await res.text();
       assert.match(html, /Zylos Standup/);
       assert.deepEqual(extractAssetUrls(html), assetUrls);
+    }
+
+    for (const [route, location] of [
+      ['/', '/standup/'],
+      ['/report', '/standup/report'],
+      ['/summary/1/2026-06-25', '/standup/summary/1/2026-06-25'],
+    ]) {
+      const res = await fetch(`${baseUrl}${route}`, { redirect: 'manual' });
+      assert.equal(res.status, 302, route);
+      assert.equal(new URL(res.headers.get('location'), baseUrl).pathname, location);
+    }
+
+    for (const route of ['/api/health', '/standup/api/health']) {
+      const res = await fetch(`${baseUrl}${route}`);
+      assert.equal(res.status, 200, route);
+      assert.equal(res.headers.get('content-type')?.includes('application/json'), true);
+      assert.deepEqual(await res.json(), { ok: true });
     }
 
     for (const assetUrl of assetUrls) {
