@@ -2,6 +2,7 @@ import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom'
 import AppShell, { LoadingScreen } from './components/AppShell.jsx';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
 import LoginPage from './pages/LoginPage.jsx';
+import ReportPage from './pages/ReportPage.jsx';
 
 function Placeholder({ title }) {
   return (
@@ -38,7 +39,7 @@ const router = createBrowserRouter([
   {
     element: <RequireAuth><AppShell /></RequireAuth>,
     children: [
-      { path: '/report', element: <Placeholder title="Report" /> },
+      { path: '/report', element: <ReportPage /> },
       { path: '/admin', element: <RequireAuth admin><Placeholder title="Admin" /></RequireAuth> },
       { path: '/summary/:teamId/:date', element: <Placeholder title="Summary" /> },
     ],
