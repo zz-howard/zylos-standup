@@ -69,6 +69,9 @@ function initSchema(db) {
       report_date    TEXT NOT NULL,
       status         TEXT NOT NULL DEFAULT 'pending'
                      CHECK (status IN ('pending','in_progress','completed')),
+      yesterday_text TEXT,
+      today_text     TEXT,
+      ai_summary     TEXT,
       prompt_json    TEXT,
       started_at     TEXT,
       completed_at   TEXT,
@@ -134,6 +137,23 @@ function runMigrations(db) {
       VALUES (1, 'initial_core_schema')
     `).run();
     db.pragma('user_version = 1');
+  }
+  if (current < 2) {
+    addColumnIfMissing(db, 'report_tasks', 'yesterday_text', 'TEXT');
+    addColumnIfMissing(db, 'report_tasks', 'today_text', 'TEXT');
+    addColumnIfMissing(db, 'report_tasks', 'ai_summary', 'TEXT');
+    db.prepare(`
+      INSERT OR IGNORE INTO schema_migrations (version, name)
+      VALUES (2, 'add_report_task_text_fields')
+    `).run();
+    db.pragma('user_version = 2');
+  }
+}
+
+function addColumnIfMissing(db, table, column, definition) {
+  const exists = db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+  if (!exists) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
 
@@ -315,15 +335,52 @@ export function getReportTaskForMemberDate(memberId, reportDate) {
   `).get(memberId, reportDate) || null);
 }
 
-export function createReportTask({ teamId, memberId, reportDate, prompt = null, status = 'pending' }) {
+export function createReportTask({
+  teamId,
+  memberId,
+  reportDate,
+  yesterdayText = null,
+  todayText = null,
+  aiSummary = null,
+  prompt = null,
+  status = 'pending',
+}) {
   assertOneOf(status, TASK_STATUSES, 'status');
   const existing = getReportTaskForMemberDate(memberId, reportDate);
   if (existing) return existing;
   const info = getDb().prepare(`
-    INSERT INTO report_tasks (team_id, member_id, report_date, prompt_json, status)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(teamId, memberId, reportDate, toJson(prompt), status);
+    INSERT INTO report_tasks (
+      team_id, member_id, report_date, yesterday_text, today_text, ai_summary, prompt_json, status
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(teamId, memberId, reportDate, yesterdayText, todayText, aiSummary, toJson(prompt), status);
   return getReportTask(info.lastInsertRowid);
+}
+
+export function updateReportTask(id, updates) {
+  const fields = [];
+  const params = [];
+  if (updates.yesterdayText !== undefined) {
+    fields.push('yesterday_text = ?');
+    params.push(updates.yesterdayText);
+  }
+  if (updates.todayText !== undefined) {
+    fields.push('today_text = ?');
+    params.push(updates.todayText);
+  }
+  if (updates.aiSummary !== undefined) {
+    fields.push('ai_summary = ?');
+    params.push(updates.aiSummary);
+  }
+  if (updates.prompt !== undefined) {
+    fields.push('prompt_json = ?');
+    params.push(toJson(updates.prompt));
+  }
+  if (!fields.length) return getReportTask(id);
+  fields.push("updated_at = datetime('now')");
+  params.push(id);
+  getDb().prepare(`UPDATE report_tasks SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  return getReportTask(id);
 }
 
 export function updateReportTaskStatus(id, status) {

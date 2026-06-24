@@ -33,7 +33,12 @@ test('initializes schema and records migration', () => {
     assert.ok(tables.includes(table), `${table} should exist`);
   }
 
-  assert.equal(db.getDb().pragma('user_version', { simple: true }), 1);
+  const taskColumns = db.getDb().prepare('PRAGMA table_info(report_tasks)').all().map(c => c.name);
+  assert.ok(taskColumns.includes('yesterday_text'));
+  assert.ok(taskColumns.includes('today_text'));
+  assert.ok(taskColumns.includes('ai_summary'));
+
+  assert.equal(db.getDb().pragma('user_version', { simple: true }), 2);
 });
 
 test('creates teams, members, report tasks, conversations, and summaries', () => {
@@ -53,10 +58,23 @@ test('creates teams, members, report tasks, conversations, and summaries', () =>
     teamId: team.id,
     memberId: member.id,
     reportDate: '2026-06-24',
+    yesterdayText: 'Reviewed the plan.',
+    todayText: 'Implement DB layer.',
     prompt: ['done', 'next', 'blockers'],
   });
   assert.equal(task.status, 'pending');
+  assert.equal(task.yesterday_text, 'Reviewed the plan.');
+  assert.equal(task.today_text, 'Implement DB layer.');
   assert.deepEqual(task.prompt, ['done', 'next', 'blockers']);
+
+  const patched = db.updateReportTask(task.id, {
+    yesterdayText: 'Finished schema.',
+    todayText: 'Wire API next.',
+    aiSummary: 'Implemented the core DB layer.',
+  });
+  assert.equal(patched.yesterday_text, 'Finished schema.');
+  assert.equal(patched.today_text, 'Wire API next.');
+  assert.equal(patched.ai_summary, 'Implemented the core DB layer.');
 
   const duplicate = db.createReportTask({
     teamId: team.id,
