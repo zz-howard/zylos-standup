@@ -6,6 +6,7 @@
  */
 
 import { getConfig, watchConfig, DATA_DIR } from './lib/config.js';
+import { closeDb, getDb } from './lib/db.js';
 
 // Initialize
 console.log(`[standup] Starting...`);
@@ -32,6 +33,8 @@ watchConfig((newConfig) => {
 
 // Main component logic
 async function main() {
+  getDb();
+
   // TODO: Implement your component logic here
   //
   // Communication components: set up platform SDK, listen for events, forward to C4
@@ -44,7 +47,7 @@ async function main() {
 // Graceful shutdown
 function shutdown() {
   console.log(`[standup] Shutting down...`);
-  // TODO: Close connections, stop listeners, cleanup
+  closeDb();
   process.exit(0);
 }
 
