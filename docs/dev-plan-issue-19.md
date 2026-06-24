@@ -78,16 +78,27 @@ zylos-standup/
 | POST | `/api/summaries/generate` | Yes | Yes |
 | GET | `/api/summaries/:team_id/:date` | Yes | No* |
 
+*\* Non-admin users can only access summaries for their own team (team_id must match). Admins can access any team's summaries.*
+
 ### Vite Dev Proxy
 
 `vite.config.js` proxies `/api/*` to `http://127.0.0.1:3475` during development. Production serves from `dist/` via Express.
 
-### Path Handling
+### Asset URL Contract
 
-Current frontend detects `/standup` prefix for Caddy reverse proxy. React app must handle the same:
-- Caddy strips `/standup` prefix, so the app receives requests at `/`
-- Direct access at `/standup/...` must also work (Express routes both)
-- Use `basename` in React Router, derived from `window.location.pathname`
+Vite build uses `base: '/'` (absolute paths). Built `index.html` references assets as `/assets/index-xxxx.js`, `/assets/index-xxxx.css`.
+
+Express serves `dist/` at two mount points (same dual-mount pattern as current `/_assets`):
+- `app.use('/assets', express.static('dist/assets'))` — for Caddy-proxied requests (prefix stripped)
+- `app.use('/standup/assets', express.static('dist/assets'))` — for direct access
+
+SPA fallback: all non-API, non-asset GET requests return `dist/index.html`.
+
+React Router basename detection:
+- `window.location.pathname.startsWith('/standup')` → basename = `/standup`
+- Otherwise → basename = `/`
+
+This guarantees asset resolution works for all route depths (`/`, `/report`, `/summary/1/2026-06-24`, `/standup/report`, `/standup/summary/1/2026-06-24`).
 
 ## Development Checklist
 
@@ -96,7 +107,7 @@ Current frontend detects `/standup` prefix for Caddy reverse proxy. React app mu
 - [ ] Install and configure Tailwind CSS
 - [ ] Install and configure shadcn/ui (dark theme)
 - [ ] Configure Vite dev proxy to Express API (port 3475)
-- [ ] Set up `vite.config.js` with `base: './'` and build output to `../dist/`
+- [ ] Set up `vite.config.js` with `base: '/'` and build output to `../dist/`
 - [ ] Add `npm run dev` and `npm run build` scripts to root `package.json`
 
 ### Phase 2: Core Infrastructure
@@ -137,34 +148,47 @@ Current frontend detects `/standup` prefix for Caddy reverse proxy. React app mu
 - [ ] Back navigation
 
 ### Phase 7: Build & Integration
+- [ ] Modify `.gitignore`: remove `dist/` line (or add `!dist/` exception) so built output can be committed
 - [ ] Run `npm run build` to produce `dist/`
-- [ ] Modify `src/lib/frontend.js` to serve `dist/` with cache-busting
+- [ ] Modify `src/lib/frontend.js`: serve `dist/` at both `/` and `/standup/` paths; dual-mount `dist/assets/` at `/assets/` and `/standup/assets/`; SPA fallback returns `dist/index.html` for non-API routes
 - [ ] Ensure logo.png is included in build (copy to `frontend/public/`)
 - [ ] Remove old `assets/standup.css` and `assets/standup.js`
 - [ ] Keep `assets/logo.png` as source (copied into `frontend/public/` for build)
-- [ ] Commit `dist/` to repo
+- [ ] Commit `dist/` to repo (verify `git status` shows `dist/` tracked, not ignored)
+- [ ] Update `frontend.test.js`: assert `dist/index.html` exists and is served; assert referenced JS/CSS assets resolve with 200 from `/`, `/report`, `/summary/1/2026-06-25`, `/standup/report`, `/standup/summary/1/2026-06-25`
 - [ ] Verify `zylos add standup` installs correctly (pre-built dist/ included)
-- [ ] Update `frontend.test.js` if route patterns changed
 
-### Phase 8: Polish
+### Phase 8: Polish & Responsive Verification
 - [ ] Verify all API integrations match current behavior
 - [ ] Test dark theme consistency across all pages
-- [ ] Verify mobile responsive on all 4 views
 - [ ] Check loading states and error handling
-- [ ] Browser test: login -> report -> admin -> summary flow
+- [ ] Browser viewport matrix test (using `agent-browser` at acceptance):
+  - Viewports: 375x812 (mobile), 768x1024 (tablet), 1280x800 (desktop)
+  - Each page: assert `document.documentElement.scrollWidth <= window.innerWidth` (no horizontal overflow)
+  - Each page: assert core controls are visible and not clipped (login fields+button, report textarea+chat+confirm, admin panels+forms, summary content)
+  - Collect screenshots at each viewport as evidence
+  - Assert zero console errors
+- [ ] End-to-end flow: login -> report -> admin -> summary -> logout
 
 ## Test Checklist
 
 ### Existing Tests (must still pass)
-- [ ] `npm test` — all 33 tests pass (backend unchanged)
-- [ ] `frontend.test.js` — update if static path changes from `assets/` to `dist/`
+- [ ] `npm test` — all existing tests pass (record actual count from output, don't hardcode)
+- [ ] `frontend.test.js` — rewrite to assert: `dist/index.html` served at all route patterns; referenced JS/CSS assets resolve 200 from multiple route depths (see Phase 7)
 
-### Manual Browser Testing
-- [ ] Login page: desktop + mobile (320px, 768px, 1280px)
-- [ ] Report page: desktop layout (sidebar + editor + chat)
-- [ ] Report page: mobile layout (stacked, scrollable)
-- [ ] Admin page: 3-column desktop, stacked mobile
-- [ ] Summary detail page: desktop + mobile
+### Browser Viewport Matrix (at acceptance, using agent-browser)
+- [ ] Viewports: 375x812 (mobile), 768x1024 (tablet), 1280x800 (desktop)
+- [ ] Login page: form centered, all fields visible, Sign In button clickable — each viewport
+- [ ] Report page desktop: sidebar + editor + chat side by side, no overflow
+- [ ] Report page mobile: stacked layout, all sections scrollable, no horizontal overflow
+- [ ] Admin page desktop: 3 panels side by side
+- [ ] Admin page mobile: panels stacked, forms usable
+- [ ] Summary detail page: content readable at all viewports
+- [ ] Each viewport: `document.documentElement.scrollWidth <= window.innerWidth`
+- [ ] Each viewport: zero console errors
+- [ ] Screenshots collected as evidence for each viewport x page combination
+
+### Functional Testing
 - [ ] Navigation: Report <-> Admin links, Logout
 - [ ] Chat: send message, receive AI response, scroll
 - [ ] Task: save report, confirm report
@@ -186,24 +210,28 @@ Current frontend detects `/standup` prefix for Caddy reverse proxy. React app mu
 - [ ] **Vite build works with Node 20+** — Vite 6 requires Node 18+, confirmed compatible
 - [ ] **shadcn/ui dark theme** — shadcn/ui supports dark mode via CSS class strategy; we set dark as default/only theme
 - [ ] **dist/ size is reasonable for git** — React + shadcn/ui bundle is typically 200-400KB gzipped; acceptable for repo
-- [ ] **Caddy strip-prefix behavior unchanged** — requests arrive at Express without `/standup` prefix; React Router handles both cases via basename
-- [ ] **Express static middleware for dist/** — `express.static()` serves the built SPA; all non-API routes fall through to `index.html` for client-side routing
+- [ ] **Caddy strip-prefix behavior unchanged** — requests arrive at Express without `/standup` prefix; React Router handles both cases via basename detection
+- [ ] **Asset URLs resolve from all route depths** — Vite `base: '/'` produces absolute asset paths; Express dual-mounts `dist/assets/` at `/assets/` and `/standup/assets/`; verified by `frontend.test.js` asserting 200 from `/`, `/report`, `/summary/1/date`, `/standup/report`, `/standup/summary/1/date`
+- [ ] **`.gitignore` must be modified** — current `.gitignore` blocks `dist/`; Phase 7 explicitly removes this rule before committing build output
 - [ ] **logo.png can be served from dist/** — copy to `frontend/public/logo.png`; Vite includes public/ files in build output
 - [ ] **devDependencies only** — Vite, React, Tailwind, shadcn/ui are devDependencies (build-time only); production only needs the built dist/ files and existing backend dependencies
 
 ## Acceptance Checklist
 
-- [ ] All 4 pages render correctly on desktop (1280px+) — browser screenshots
-- [ ] All 4 pages render correctly on mobile (375px) — browser screenshots
+- [ ] All 4 pages render correctly on desktop (1280px) — browser screenshots, no horizontal overflow
+- [ ] All 4 pages render correctly on mobile (375px) — browser screenshots, no horizontal overflow
+- [ ] All 4 pages render correctly on tablet (768px) — browser screenshots, no horizontal overflow
+- [ ] `scrollWidth <= innerWidth` assertion passes at all 3 viewports for all pages
+- [ ] Zero console errors at all viewports
 - [ ] Login flow: select team, enter credentials, sign in, redirected to report
 - [ ] Report flow: view tasks, edit report, send chat message, confirm report
 - [ ] Admin flow: create team, add member, set schedule, generate summary
 - [ ] Summary detail: accessible from admin, displays brief + detailed content
 - [ ] API integration identical to current frontend (no backend changes)
 - [ ] Dark theme consistent with Zylos design language
-- [ ] `npm test` — all existing tests pass
+- [ ] `npm test` — all existing tests pass (record actual count)
 - [ ] `npm run build` produces `dist/` successfully
-- [ ] `dist/` committed, deployable via `zylos upgrade standup`
+- [ ] `dist/` committed (not blocked by `.gitignore`), deployable via `zylos upgrade standup`
+- [ ] `frontend.test.js` passes: `dist/index.html` served, referenced assets resolve 200 from all route patterns
 - [ ] Visual comparison: clear improvement over vanilla version
 - [ ] Logout works, session expiry redirects to login
-- [ ] No console errors in browser
