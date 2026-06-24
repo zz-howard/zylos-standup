@@ -114,7 +114,7 @@ Browser acceptance must test via the real `https://host/standup/...` URL, not Ex
 - [ ] Create `api.js` fetch wrapper (credentials: same-origin, 401 redirect, JSON parsing)
 - [ ] Create auth context provider (session state, login/logout, /api/auth/me check)
 - [ ] Create `AppShell.jsx` (header with logo, nav links, logout button, responsive)
-- [ ] Set up React Router with basename detection for `/standup` prefix
+- [ ] Set up React Router with fixed basename `/standup`
 - [ ] Add route guards (redirect to login when unauthorized)
 
 ### Phase 3: Login Page
