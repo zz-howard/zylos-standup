@@ -16,6 +16,7 @@ export const LOGS_DIR = path.join(DATA_DIR, 'logs');
 
 // Default configuration
 export const DEFAULT_CONFIG = {
+  schemaVersion: 1,
   enabled: true,
   port: 3475,
   auth: {

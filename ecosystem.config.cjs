@@ -5,7 +5,7 @@ module.exports = {
   apps: [{
     name: 'zylos-standup',
     script: 'src/index.js',
-    cwd: path.join(os.homedir(), 'zylos/.claude/skills/standup'),
+    cwd: __dirname,
     env: {
       NODE_ENV: 'production'
     },

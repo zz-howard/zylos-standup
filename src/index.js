@@ -45,11 +45,12 @@ async function main() {
   const app = express();
   app.set('trust proxy', 'loopback');
   app.use(express.json({ limit: '64kb' }));
-  setupAuthRoutes(app);
 
   app.get('/api/health', (req, res) => {
     res.json({ ok: true });
   });
+
+  setupAuthRoutes(app);
 
   // TODO: Implement your component logic here
   //

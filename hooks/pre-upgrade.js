@@ -21,12 +21,15 @@ import path from 'path';
 const HOME = process.env.HOME;
 const DATA_DIR = path.join(HOME, 'zylos/components/standup');
 const configPath = path.join(DATA_DIR, 'config.json');
+const backupDir = path.join(DATA_DIR, 'backups');
 
 console.log('[pre-upgrade] Running standup pre-upgrade checks...\n');
 
 // 1. Backup config before upgrade
 if (fs.existsSync(configPath)) {
-  const backupPath = configPath + '.backup';
+  fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.join(backupDir, `config.${stamp}.json`);
   fs.copyFileSync(configPath, backupPath);
   console.log('Config backed up to:', backupPath);
 }

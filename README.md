@@ -19,9 +19,9 @@
 
 ---
 
-- **Feature 1** — description
-- **Feature 2** — description
-- **Feature 3** — description
+- **Daily report tasks** — create and track member standup submissions
+- **Team member auth** — cookie sessions with scrypt password storage
+- **Component lifecycle** — installs as a Zylos PM2-managed HTTP service
 
 ## Install
 
@@ -33,7 +33,7 @@ Or manually:
 
 ```bash
 cd ~/zylos/.claude/skills
-git clone https://github.com/zylos-ai/zylos-standup.git standup
+git clone https://github.com/zz-howard/zylos-standup.git standup
 cd standup && npm install
 ```
 
@@ -43,14 +43,15 @@ Edit `~/zylos/components/standup/config.json`:
 
 ```json
 {
-  "enabled": true
+  "enabled": true,
+  "port": 3475
 }
 ```
 
 ## Usage
 
 ```bash
-# Example usage
+npm start
 ```
 
 ## Design Notes

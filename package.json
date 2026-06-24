@@ -8,13 +8,13 @@
     "start": "node src/index.js",
     "test": "node --test"
   },
-  "homepage": "https://github.com/zylos-ai/zylos-standup#readme",
+  "homepage": "https://github.com/zz-howard/zylos-standup#readme",
   "bugs": {
-    "url": "https://github.com/zylos-ai/zylos-standup/issues"
+    "url": "https://github.com/zz-howard/zylos-standup/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/zylos-ai/zylos-standup.git"
+    "url": "git+https://github.com/zz-howard/zylos-standup.git"
   },
   "keywords": [
     "zylos",

@@ -2,9 +2,10 @@
 name: standup
 version: 0.1.0
 description: >
-  AI-assisted async daily standup tool. Use when ...
-  (Include trigger patterns: what user requests should activate this component)
-type: capability  # communication | capability | utility
+  AI-assisted async daily standup tool for collecting team member updates,
+  tracking daily report tasks, and preparing summaries. Use when managing
+  standups, async check-ins, daily reports, blockers, or team status updates.
+type: capability
 
 lifecycle:
   npm: true
@@ -20,42 +21,39 @@ lifecycle:
     post-upgrade: hooks/post-upgrade.js
   preserve:
     - config.json
-    - data/
-
-# For HTTP services exposed through Zylos Caddy, prefer a root-internal app:
-# - The component listens on localhost and serves internal routes at /.
-# - Caddy exposes it at /standup/*, strips that prefix, and forwards
-#   X-Forwarded-Prefix. Browser URLs should be relative by default and should
-#   use X-Forwarded-Prefix when present.
-# http_routes:
-#   - path: /standup/*
-#     type: reverse_proxy
-#     target: localhost:3000
-#     strip_prefix: /standup
+    - standup.db
+    - standup.db-wal
+    - standup.db-shm
+    - logs/
+    - backups/
 
 upgrade:
-  repo: zylos-ai/zylos-standup
+  repo: zz-howard/zylos-standup
   branch: main
 
 config:
-  required:
-    # Values are collected by zylos and passed to lifecycle.hooks.configure as stdin JSON.
-    # The configure hook decides how to store them in config.json.
-    # - name: STANDUP_API_KEY
-    #   description: API key for standup
-    #   sensitive: true
+  required: []
   optional:
-    # - name: STANDUP_DEBUG
-    #   description: Enable debug mode
-    #   default: "false"
+    - name: STANDUP_PORT
+      description: HTTP port for the standup service
+      default: "3475"
+
+http_routes:
+  - path: /standup/*
+    type: reverse_proxy
+    target: 127.0.0.1:3475
+    strip_prefix: /standup
 
 dependencies: []
 ---
 
 # Standup
 
+AI-assisted async daily standup service with cookie-based team member login,
+daily report tasks, and summary data storage.
+
 ```bash
-# Example usage commands here
+npm start
 ```
 
-Run `node ~/zylos/.claude/skills/standup/scripts/<script>.js --help` for all options.
+Default URL: `http://127.0.0.1:3475/`
