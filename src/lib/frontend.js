@@ -20,7 +20,8 @@ export function setupFrontendRoutes(app) {
     ) {
       return next();
     }
-    if (!req.path.startsWith('/standup')) {
+    const behindProxy = !!req.headers['x-forwarded-prefix'];
+    if (!behindProxy && !req.path.startsWith('/standup')) {
       return res.redirect(302, `/standup${req.path === '/' ? '/' : req.path}`);
     }
     return res.sendFile(indexPath);
