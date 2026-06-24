@@ -86,19 +86,19 @@ zylos-standup/
 
 ### Asset URL Contract
 
-Vite build uses `base: '/'` (absolute paths). Built `index.html` references assets as `/assets/index-xxxx.js`, `/assets/index-xxxx.css`.
+Vite build uses `base: '/standup/'`. Built `index.html` references assets as `/standup/assets/index-xxxx.js`, `/standup/assets/index-xxxx.css`.
 
-Express serves `dist/` at two mount points (same dual-mount pattern as current `/_assets`):
-- `app.use('/assets', express.static('dist/assets'))` — for Caddy-proxied requests (prefix stripped)
-- `app.use('/standup/assets', express.static('dist/assets'))` — for direct access
+Why `/standup/` and not `/`: Caddy only routes `/standup/*` to this service (strip-prefix). A browser-absolute `/assets/...` request would bypass the Caddy route entirely and 404. Assets must be under `/standup/` to reach this service.
+
+Express serves `dist/assets/` at two mount points:
+- `app.use('/assets', express.static('dist/assets'))` — Caddy strips `/standup` prefix, so `/standup/assets/x.js` arrives as `/assets/x.js`
+- `app.use('/standup/assets', express.static('dist/assets'))` — for direct local access at `127.0.0.1:3475/standup/assets/...`
 
 SPA fallback: all non-API, non-asset GET requests return `dist/index.html`.
 
-React Router basename detection:
-- `window.location.pathname.startsWith('/standup')` → basename = `/standup`
-- Otherwise → basename = `/`
+React Router basename: always `/standup` (matches both Caddy-proxied and direct access).
 
-This guarantees asset resolution works for all route depths (`/`, `/report`, `/summary/1/2026-06-24`, `/standup/report`, `/standup/summary/1/2026-06-24`).
+Browser acceptance must test via the real `https://host/standup/...` URL, not Express root routes.
 
 ## Development Checklist
 
@@ -107,7 +107,7 @@ This guarantees asset resolution works for all route depths (`/`, `/report`, `/s
 - [ ] Install and configure Tailwind CSS
 - [ ] Install and configure shadcn/ui (dark theme)
 - [ ] Configure Vite dev proxy to Express API (port 3475)
-- [ ] Set up `vite.config.js` with `base: '/'` and build output to `../dist/`
+- [ ] Set up `vite.config.js` with `base: '/standup/'` and build output to `../dist/`
 - [ ] Add `npm run dev` and `npm run build` scripts to root `package.json`
 
 ### Phase 2: Core Infrastructure
@@ -155,7 +155,7 @@ This guarantees asset resolution works for all route depths (`/`, `/report`, `/s
 - [ ] Remove old `assets/standup.css` and `assets/standup.js`
 - [ ] Keep `assets/logo.png` as source (copied into `frontend/public/` for build)
 - [ ] Commit `dist/` to repo (verify `git status` shows `dist/` tracked, not ignored)
-- [ ] Update `frontend.test.js`: assert `dist/index.html` exists and is served; assert referenced JS/CSS assets resolve with 200 from `/`, `/report`, `/summary/1/2026-06-25`, `/standup/report`, `/standup/summary/1/2026-06-25`
+- [ ] Update `frontend.test.js`: assert `dist/index.html` exists and is served; parse its `<script>`/`<link>` tags to extract asset URLs (expected `/standup/assets/...`); assert those assets resolve 200 via both Express paths: stripped (`/assets/...`) and direct (`/standup/assets/...`); assert SPA fallback returns index.html for `/report`, `/standup/report`, `/summary/1/2026-06-25`, `/standup/summary/1/2026-06-25`
 - [ ] Verify `zylos add standup` installs correctly (pre-built dist/ included)
 
 ### Phase 8: Polish & Responsive Verification
@@ -211,7 +211,7 @@ This guarantees asset resolution works for all route depths (`/`, `/report`, `/s
 - [ ] **shadcn/ui dark theme** — shadcn/ui supports dark mode via CSS class strategy; we set dark as default/only theme
 - [ ] **dist/ size is reasonable for git** — React + shadcn/ui bundle is typically 200-400KB gzipped; acceptable for repo
 - [ ] **Caddy strip-prefix behavior unchanged** — requests arrive at Express without `/standup` prefix; React Router handles both cases via basename detection
-- [ ] **Asset URLs resolve from all route depths** — Vite `base: '/'` produces absolute asset paths; Express dual-mounts `dist/assets/` at `/assets/` and `/standup/assets/`; verified by `frontend.test.js` asserting 200 from `/`, `/report`, `/summary/1/date`, `/standup/report`, `/standup/summary/1/date`
+- [ ] **Asset URLs resolve from all route depths** — Vite `base: '/standup/'` produces `/standup/assets/...` paths; Caddy routes `/standup/*` to Express (strip-prefix), so `/standup/assets/x.js` arrives as `/assets/x.js`; Express dual-mounts at `/assets/` and `/standup/assets/`; `frontend.test.js` asserts assets 200 from both stripped (`/assets/...`) and direct (`/standup/assets/...`) paths
 - [ ] **`.gitignore` must be modified** — current `.gitignore` blocks `dist/`; Phase 7 explicitly removes this rule before committing build output
 - [ ] **logo.png can be served from dist/** — copy to `frontend/public/logo.png`; Vite includes public/ files in build output
 - [ ] **devDependencies only** — Vite, React, Tailwind, shadcn/ui are devDependencies (build-time only); production only needs the built dist/ files and existing backend dependencies
