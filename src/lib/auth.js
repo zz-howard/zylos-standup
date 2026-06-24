@@ -6,6 +6,7 @@ import {
   deleteSession,
   getMemberByTeamAndName,
   getSession,
+  listTeams,
   sanitizeMember,
   touchSession,
 } from './db.js';
@@ -203,6 +204,16 @@ export function adminRequired(req, res, next) {
 
 export function setupAuthRoutes(app) {
   const router = express.Router();
+
+  router.get('/teams', (req, res) => {
+    res.json({
+      teams: listTeams({ active: true }).map(team => ({
+        id: team.id,
+        name: team.name,
+        timezone: team.timezone,
+      })),
+    });
+  });
 
   router.post('/login', (req, res) => {
     const ip = getClientIp(req);

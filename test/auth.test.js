@@ -64,7 +64,11 @@ test('login, me, protected API, admin gate, and logout flow', async () => {
 
   const { server, baseUrl } = await startApp();
   try {
-    let res = await fetch(`${baseUrl}/api/auth/me`);
+    let res = await fetch(`${baseUrl}/api/auth/teams`);
+    assert.equal(res.status, 200);
+    assert.deepEqual((await res.json()).teams.map(row => row.name), ['Engineering']);
+
+    res = await fetch(`${baseUrl}/api/auth/me`);
     assert.equal(res.status, 401);
     res = await fetch(`${baseUrl}/api/auth/logout`, { method: 'POST' });
     assert.equal(res.status, 401);
