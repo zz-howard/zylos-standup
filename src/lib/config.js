@@ -33,7 +33,7 @@ export const DEFAULT_CONFIG = {
     ],
   },
   ai: {
-    default: { runtime: 'auto', model: 'auto', effort: 'medium' },
+    default: { provider: 'auto', runtime: 'auto', model: 'auto', effort: 'medium' },
     summary: {},
     report: {},
   },
