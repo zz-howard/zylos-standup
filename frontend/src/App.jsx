@@ -4,14 +4,7 @@ import { AuthProvider, useAuth } from './lib/auth.jsx';
 import AdminPage from './pages/AdminPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import ReportPage from './pages/ReportPage.jsx';
-
-function Placeholder({ title }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 text-card-foreground">
-      <h1 className="text-lg font-semibold">{title}</h1>
-    </div>
-  );
-}
+import SummaryPage from './pages/SummaryPage.jsx';
 
 function RequireAuth({ children, admin = false }) {
   const { member, loading } = useAuth();
@@ -42,7 +35,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/report', element: <ReportPage /> },
       { path: '/admin', element: <RequireAuth admin><AdminPage /></RequireAuth> },
-      { path: '/summary/:teamId/:date', element: <Placeholder title="Summary" /> },
+      { path: '/summary/:teamId/:date', element: <SummaryPage /> },
     ],
   },
 ], { basename: '/standup' });
