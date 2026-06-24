@@ -53,6 +53,17 @@ function configKeyFromRequiredName(name) {
     .toLowerCase();
 }
 
+function coerceConfigValue(key, value) {
+  if (key === 'port') {
+    const port = Number(value);
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error(`${COMPONENT_PREFIX}PORT must be an integer TCP port`);
+    }
+    return port;
+  }
+  return value;
+}
+
 try {
   const raw = (await readStdin()).trim();
   if (!raw) {
@@ -67,7 +78,8 @@ try {
   const config = readJsonFile(CONFIG_PATH, DEFAULT_CONFIG);
   for (const [name, value] of Object.entries(collected)) {
     if (value === undefined || value === null || value === '') continue;
-    config[configKeyFromRequiredName(name)] = value;
+    const key = configKeyFromRequiredName(name);
+    config[key] = coerceConfigValue(key, value);
   }
 
   writeJsonFile(CONFIG_PATH, config);

@@ -14,10 +14,50 @@
 
 import fs from 'fs';
 import path from 'path';
+import { DEFAULT_CONFIG } from '../src/lib/config.js';
 
 const HOME = process.env.HOME;
 const DATA_DIR = path.join(HOME, 'zylos/components/standup');
 const configPath = path.join(DATA_DIR, 'config.json');
+
+function deepMergeMissing(target, defaults) {
+  const result = { ...target };
+  for (const [key, value] of Object.entries(defaults || {})) {
+    if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      result[key] &&
+      typeof result[key] === 'object' &&
+      !Array.isArray(result[key])
+    ) {
+      result[key] = deepMergeMissing(result[key], value);
+    } else if (result[key] === undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
+function collectAddedKeys(before, after, prefix = '') {
+  const added = [];
+  for (const [key, value] of Object.entries(after || {})) {
+    const name = prefix ? `${prefix}.${key}` : key;
+    if (before[key] === undefined) {
+      added.push(name);
+    } else if (
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      before[key] &&
+      typeof before[key] === 'object' &&
+      !Array.isArray(before[key])
+    ) {
+      added.push(...collectAddedKeys(before[key], value, name));
+    }
+  }
+  return added;
+}
 
 console.log('[post-upgrade] Running standup-specific migrations...\n');
 
@@ -25,29 +65,14 @@ console.log('[post-upgrade] Running standup-specific migrations...\n');
 if (fs.existsSync(configPath)) {
   try {
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    let migrated = false;
-    const migrations = [];
-
-    // Migration 1: Ensure enabled field
-    if (config.enabled === undefined) {
-      config.enabled = true;
-      migrated = true;
-      migrations.push('Added enabled field');
-    }
-
-    // Add more migrations as needed for future versions
-    // Migration N: Example
-    // if (config.newField === undefined) {
-    //   config.newField = 'default';
-    //   migrated = true;
-    //   migrations.push('Added newField');
-    // }
+    const migratedConfig = deepMergeMissing(config, DEFAULT_CONFIG);
+    const migrations = collectAddedKeys(config, migratedConfig);
 
     // Save if migrated
-    if (migrated) {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    if (migrations.length) {
+      fs.writeFileSync(configPath, JSON.stringify(migratedConfig, null, 2) + '\n', { mode: 0o600 });
       console.log('Config migrations applied:');
-      migrations.forEach(m => console.log('  - ' + m));
+      migrations.forEach(m => console.log('  - Added ' + m));
     } else {
       console.log('No config migrations needed.');
     }
